@@ -28,9 +28,8 @@ RDParse ← ⊑∘RDVal∘RDTok
 ### Array approach
 
 ATok ← RDTok
-SplitF ← { ((¯1+⊢×·+`»⊸<)¬𝕨⊸≡¨𝕩)⊔𝕩 }
-OB ← "["⊸≡¨
-CB ← "]"⊸≡¨
+OB ← "["⊸≡¨     # Opening brackets
+CB ← "]"⊸≡¨     # Closing brackets
 
 AParse ← {
   d       ← +`∘(OB-CB) t←ATok𝕩    # Depth reading
