@@ -25,7 +25,7 @@ RDLst ← {
 RDVal ← { "["≡⊑𝕩? ⟨⟩ RDLst 1↓𝕩; RDNum 𝕩 }
 RDParse ← ⊑∘RDVal∘RDTok
 
-### Array approach
+### Array approach, still nested
 
 ATok ← RDTok
 OB ← "["⊸≡¨     # Opening brackets
@@ -89,12 +89,58 @@ AParse ← {
 #
 # The rest is just boilerplate so that a nicely formatted list falls out.
 
+### Flat array approach
+
+FATok ← {
+  ns ← »⊸< n←𝕩∊'0'+↕10
+  ds ← •ParseFloat¨(1-˜n×+`ns)⊔𝕩  # All digits
+  f  ← ns∨𝕩∊"[]"                  # First occurrences
+  ⟨ '·'¨⌾((f/n)⊸/)(f/𝕩), ds ⟩
+}
+
+#     a ← "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+# "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+#     ns ← »⊸< n←a∊'0'+↕10        # ns is the first occurrence of a number (so "10" gets 1‿0)
+# ⟨ 0 1 0 1 0 0 1 0 1 0 0 1 0 1 0 0 0 1 0 1 0 0 1 0 1 0 0 0 ⟩
+#     n                           # n is all numbers (so "10" gets 1‿1)
+# ⟨ 0 1 0 1 0 0 1 0 1 0 0 1 0 1 0 0 0 1 0 1 0 0 1 0 1 1 0 0 ⟩
+#     ds ← •ParseFloat¨(1-˜n×+`ns)⊔a # Number tokens in a separate list
+# ⟨ 1 2 3 4 5 6 7 8 9 10 ⟩
+#     f  ← ns∨a∊"[]"                 # First occurrences of everything
+# ⟨ 1 1 0 1 0 1 1 0 1 0 1 1 0 1 1 1 0 1 0 1 0 1 1 0 1 0 1 1 ⟩
+#
+# At this point we need to work with the shape of the array we are trying to
+# build -- that in which everything is represented by one character only.
+#
+#     f/a                 # Shape of the new array
+# "[12[34[56]]78[91]]"
+#     f/n                 # What are the number tokens in the new array?
+# ⟨ 0 1 1 0 1 1 0 1 1 0 0 1 1 0 1 1 0 0 ⟩
+#     '·'¨⌾((f/n)⊸/)(f/a) # Replace numbers with '·'
+# "[··[··[··]]··[··]]"
+
+FAParse ← {
+  tok‿num ← FATok 𝕩
+  o ← '['=tok
+  c ← ']'=tok
+  g ← ⍋+`(o-c)          # Grading by depth
+  f ← tok∊"·]"          # Numbers and nesting
+  k ← ⍋⍋ (f/'·'=tok) + 2×f/c
+  l ← (⍋g)⊏ +`'['=g⊏tok # Sublist index
+  i ← k ⊏ (↕nv) ∾ (nv←≠num)+ ≠⊸- c/»l
+  val ← num             # Mutation is evil
+  {val∾↩<𝕩⊏val⋄@}¨ ⌽((+´c)∾˜1-˜f/l)⊔i
+  ¯1⊑val
+}
+
 ### Performance
 
 # Some AoC day using exactly this format.
 SplitF ⇐ { ((¯1+⊢×·+`»⊸<)¬𝕨⊸≡¨𝕩)⊔𝕩 }
 input ← ']'∾˜ '['∾ ¯1↓ ∾ ∾⟜","¨ ∾⟨⟩SplitF •FLines"/home/slot/repos/advent/aoc2022/inputs/day13.txt"
 
-(RDParse input) ≡ AParse input # ⇒ 1
-100 RDParse•_timed input       # ⇒ 0.00311369804
-100 AParse •_timed input       # ⇒ 0.00244539886
+(RDParse input) ≡ AParse input  # ⇒ 1
+(FAParse input) ≡ AParse input  # ⇒ 1
+100 RDParse•_timed input        # ⇒ 0.00269128438
+100 AParse •_timed input        # ⇒ 0.00236296291
+100 FAParse•_timed input        # ⇒ 0.00118868171
