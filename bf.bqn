@@ -4,7 +4,7 @@ P ← { # Parse
   ts ← ∊⟜"><+-[],."⊸/ 𝕩            # tokens
   ls ← (≠ts)⥊0                     # loops
   o←'['=ts ⋄ c←']'=ts ⋄ d←+`(o-c)  # depth ordering
-  { ab ← ⟨𝕩, ⊑𝕩+1⊐˜(𝕩⊑d)>𝕩↓d⟩      # associate "[" with matching "]"
+  { ab ← ⟨𝕩, ⊑𝕩+/(𝕩⊑d)>𝕩↓d⟩        # associate "[" with matching "]"
     ls(⌽ab)⌾(ab⊸⊏)↩ ⋄@
   }¨/o
   ts‿ls
@@ -16,10 +16,8 @@ P"++ > +++++ [< + > -] ++++ ++++ [< +++ +++ > -] < ."
 
 E ← { # Execute
   ts‿ls ← P𝕩      # Tokens and loops
-  a   ← 30000⥊0   # working tape
-  ip  ← 0         # instruction pointer
-  dp  ← 0         # data        pointer
-  out ← ⟨⟩
+  a←30000⥊0 ⋄ ip←0 ⋄ dp←0 # Working tape, instruction pointer, and data pointer.
+  out ← ⟨⟩        # Output as an array instead of putting out one char at a time.
   {𝕊·:
     { '>': dp+↩1;
       '<': dp-↩1;
