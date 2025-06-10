@@ -133,6 +133,107 @@ FAParse ← {
   ¯1⊑val
 }
 
+# This one is a real doozy. The first few steps are not so complicated:
+#
+#     tok‿num ← FATok "[1,2,[],[3,4,[5,6]],7,8,[9,10]]"
+# ⟨ "[··[][··[··]]··[··]]" ⟨ 1 2 3 4 5 6 7 8 9 10 ⟩ ⟩
+#     o ← '['=tok
+# ⟨ 1 0 0 1 0 1 0 0 1 0 0 0 0 0 0 1 0 0 0 0 ⟩
+#     c ← ']'=tok
+# ⟨ 0 0 0 0 1 0 0 0 0 0 0 1 1 0 0 0 0 0 1 1 ⟩
+#     g ← ⍋+`(o-c)
+# ⟨ 19 0 1 2 4 12 13 14 18 3 5 6 7 11 15 16 17 8 9 10 ⟩
+#
+# A standard ordering things by depth. We know this. Then we get the numbers
+# and additional sublists (nesting) from the original token array.
+#
+#     tok≍ nn←tok∊"·]"
+# ┌─
+# ╵ '[' '·' '·' '[' ']' '[' '·' '·' '[' '·' '·' ']' ']' '·' '·' '[' '·' '·' ']' ']'
+#    0   1   1   0   1   0   1   1   0   1   1   1   1   1   1   0   1   1   1   1
+#                                                                                   ┘
+# Now we concentrate on these values and further sublists.
+#
+#     nn/tok
+# "··]····]]····]]"
+#     (nn/tok) ≍ (nn/'·'=tok) + 2×nn/c
+# ┌─
+# ╵ '·' '·' ']' '·' '·' '·' '·' ']' ']' '·' '·' '·' '·' ']' ']'
+#    1   1   2   1   1   1   1   2   2   1   1   1   1   2   2
+#                                                               ┘
+# We can use the ordinals pattern to see where the individual things would end
+# up with were we to sort the list.
+#
+#     k ← ⍋⍋ (nn/'·'=tok) + 2×nn/c
+# ⟨ 0 1 10 2 3 4 5 11 12 6 7 8 9 13 14 ⟩
+#     (nn/tok)≍k
+# ┌─
+# ╵ '·' '·' ']' '·' '·' '·' '·' ']' ']' '·' '·' '·' '·' ']' ']'
+#    0   1   10  2   3   4   5   11  12  6   7   8   9   13  14
+#                                                                ┘
+# This at least gets us the right indices for all numbers. However, the
+# sublists are not quite right, still, but not unexpected -- so far we haven't
+# used the opening brackets at all! This is where things get spicy. We first
+# want to order the sublists according to their depth.
+#
+#
+#     g⊏tok              # depth ordering again
+# "][··]]··][[··][··[··"
+#     +`'['=g⊏tok
+# ⟨ 0 1 1 1 1 1 1 1 1 2 3 3 3 3 4 4 4 5 5 5 ⟩
+#
+# Crucially, however, we don't want this depth index in depth order, but in
+# the ordinary order that 'tok' and also 'k' are in. This we can do with the
+# observation that we can easily invert permutations with ⍋.
+#
+#     tok≍ l←(⍋g)⊏+`'['=g⊏tok
+# ┌─
+# ╵ '[' '·' '·' '[' ']' '[' '·' '·' '[' '·' '·' ']' ']' '·' '·' '[' '·' '·' ']' ']'
+#    1   1   1   2   1   3   3   3   5   5   5   3   1   1   1   4   4   4   1   0
+#                                                                                   ┘
+# With this we can essentially number the sublists of the structure by depth.
+#
+#     c/»l
+# ⟨ 2 5 3 4 1 ⟩
+#
+# Aligning the indices with the sublists yields something like
+#
+#     [··[][··[··]]··[··]]
+#         2      53     41
+#
+# This means that, at the end, we shall construct sublist 2 first, then 5,
+# then 3, and so on. Since we build the list depth-first, we need to invert
+# the current order, and also take into consideration that we have values to
+# insert.
+#
+#     (nv←≠num)+ ≠⊸- c/»l
+# ⟨ 13 10 12 11 14 ⟩
+#
+# We can finally build the full list of indices, and use the value indices to
+# index them.
+#
+#     (↕nv) ∾ (nv←≠num)+ ≠⊸- c/»l
+# ⟨ 0 1 2 3 4 5 6 7 8 9 13 10 12 11 14 ⟩
+#     i ← k⊏(↕nv) ∾ (nv←≠num)+ ≠⊸- c/»l
+# ⟨ 0 1 13 2 3 4 5 10 12 6 7 8 9 11 14 ⟩
+#
+# Almost done -- all that's left is to build everything up recursively, just
+# as we did in the nested array version.
+#
+#     (+´c)∾˜1-˜nn/l
+# ⟨ 0 0 0 2 2 4 4 2 0 0 0 3 3 0 ¯1 5 ⟩
+#     ⌽((+´c)∾˜1-˜nn/l)⊔i
+# ⟨ ⟨ 4 5 ⟩ ⟨ 8 9 ⟩ ⟨ 2 3 15 ⟩ ⟨⟩ ⟨ 0 1 12 13 6 7 14 ⟩ ⟩
+#
+#     val ← num             # Mutation is evil
+#     {val∾↩<𝕩⊏val⋄@}¨ ⌽((+´c)∾˜1-˜nn/l)⊔i
+#     ¯1⊑val
+# ┌─
+# · 1 2 ⟨⟩ ⟨ 3 4 ⟨ 5 6 ⟩ ⟩ 7 8 ⟨ 9 10 ⟩
+#                                       ┘
+#     a
+# "[1,2,[],[3,4,[5,6]],7,8,[9,10]]"
+
 ### Performance
 
 # Some AoC day using exactly this format.
