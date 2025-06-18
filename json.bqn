@@ -6,14 +6,14 @@
 # + Currently there is no input validation -- it better be valid!
 #
 
-# 'Tokenise json' yields 'tokens‿numbers‿strings', where 'tokens' is a string
-# of characters each representing a token -- with '"' for strings and '0' for
+# 'Lex json' yields 'tokens‿numbers‿strings', where 'tokens' is a string of
+# characters each representing a token -- with '"' for strings and '0' for
 # numbers --, 'numbers' is a list of numbers in order of occurrence, and
 # 'strings' is a list of strings in order of occurrence.
 #
-#     Tokenise "{""a"": 123, ""bcde"": [1,42,30]}"
+#     Lex "{""a"": 123, ""bcde"": [1,42,30]}"
 # ⟨ "{"":0,"":[0,0,0]}" ⟨ 123 1 42 30 ⟩ ⟨ "a" "bcde" ⟩ ⟩
-Tokenise ← {
+Lex ← {
   x ← (¬∊)⟜(@+10‿13‿32)⊸/𝕩 # Remove whitespace
   # Numbers
   nb ← »⊸< n←x∊'0'+↕10     # Number beginnings
@@ -28,12 +28,10 @@ Tokenise ← {
     strings
   ⟩
 }
-Tokenise "{""a"": 123, ""bcde"": [1,42,30]}"
-# ⟨ "{"":0,"":[0,0,0]}" ⟨ 123 1 42 30 ⟩ ⟨ "a" "bcde" ⟩ ⟩
 
 # XXX: WIP. Only parses purely numeric lists right now.
 Parse ← {
-  ts‿ns‿ss ← Tokenise 𝕩
+  ts‿ns‿ss ← Lex 𝕩
   o←ts='[' ⋄ c←ts=']' ⋄ d←⍋+`(o-c)
   n ← ts∊"0]"                           # Numbers and nesting
   vi ← ⍋⍋ (n/ts='0') + 2×n/c            # Value indices
@@ -44,14 +42,15 @@ Parse ← {
   ¯1⊑vs
 }
 
-Parse "[1, [42, [[0], 2, 3]], 30]"
-# ┌─
-# · 1 ┌─                   30
-#     · 42 ⟨ ⟨ 0 ⟩ 2 3 ⟩
-#                        ┘
-#                             ┘
+### Tests
 
-Parse "[1,2,[3,4,[5,6]],7,8,[9,10]]"
-# ┌─
-# · 1 2 ⟨ 3 4 ⟨ 5 6 ⟩ ⟩ 7 8 ⟨ 9 10 ⟩
-#                                    ┘
+#### Lexing
+
+⟨"{"":0,"":[0,0,0]}", 123‿1‿42‿30, "a"‿"bcde"⟩≡ Lex "{""a"": 123, ""bcde"": [1,42,30]}"
+
+#### Parsing
+
+⟨⟩≡ Parse "[ ]"
+⟨1,2,3⟩≡ Parse " [ 1 , 2 , 3 ] "
+⟨1,⟨42,⟨⟨0⟩,2,3⟩⟩,30⟩≡ Parse "[1, [42, [[0 ], 2, 3]], 30]"
+⟨1,2,⟨⟩,⟨3,4,⟨5,6⟩⟩,7,8,⟨9,⟨⟩,10⟩⟩≡ Parse "[1,2,[ ],[3,4,[5,6]],7,8,[9,[],10]]"
