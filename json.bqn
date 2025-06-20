@@ -3,6 +3,7 @@
 # + Only integers.
 # + Only ASCII in strings.
 # + No constants.
+# + Keys for maps must be strings.
 # + Currently there is no input validation -- it better be valid!
 #
 
@@ -29,15 +30,17 @@ Lex ← {
   ⟩
 }
 
-# XXX: WIP. Only parses purely numeric lists right now.
+# XXX: WIP. Only parses lists right now.
 Parse ← {
   ts‿ns‿ss ← Lex 𝕩
+
+  # Lists
   o←ts='[' ⋄ c←ts=']' ⋄ d←⍋+`(o-c)
-  n ← ts∊"0]"                           # Numbers and nesting
-  vi ← ⍋⍋ (n/ts='0') + 2×n/c            # Value indices
+  n ← ts∊"""0]"                             # Literals and nesting
+  vi ← ⍋⍋ (n/ts='0') + (2×n/ts='"') + 3×n/c # Value indices
   l ← (⍋d)⊏+`'['=d⊏ts
-  i ← vi⊏(↕≠ns)∾(≠ns)+ ≠⊸- c/»l
-  vs ← ns
+  vs ← ns∾ss
+  i ← vi⊏(↕≠vs)∾(≠vs)+ ≠⊸- c/»l
   {vs ∾↩ <𝕩⊏vs ⋄@}¨ ⌽i⊔˜(+´c)∾˜1-˜n/l
   ¯1⊑vs
 }
@@ -54,3 +57,4 @@ Parse ← {
 ⟨1,2,3⟩≡ Parse " [ 1 , 2 , 3 ] "
 ⟨1,⟨42,⟨⟨0⟩,2,3⟩⟩,30⟩≡ Parse "[1, [42, [[0 ], 2, 3]], 30]"
 ⟨1,2,⟨⟩,⟨3,4,⟨5,6⟩⟩,7,8,⟨9,⟨⟩,10⟩⟩≡ Parse "[1,2,[ ],[3,4,[5,6]],7,8,[9,[],10]]"
+⟨1,"a",⟨⟩,⟨3,4,⟨5,"b"⟩⟩,7,8,⟨9,⟨⟩,"foo"⟩⟩≡ Parse "[1,""a"",[ ],[3,4,[5,""b""]],7,8,[9,[],""foo""]]"
